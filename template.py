@@ -74,7 +74,7 @@ questions = {
         "How does the company plan to address market competition?",
         "What are the long-term sustainability goals?"
     ],
-    "Tier 3 [Lucent_Services]  ": [
+    "Tier 3 lucent toursim": [
         "What services are being offered under Rule 21(b)1?",
         "What are the key market segments targeted for these services?",
         "How does the company plan to differentiate its services?",
