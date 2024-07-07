@@ -50,12 +50,12 @@ else:
     templates = list(questions.keys())
     selected_template = st.selectbox("Select a Template", templates)
     if st.button("Proceed"):
-        # if selected_template and audio_file and (company_info or company_info_link):
-        st.session_state.questions = questions[selected_template]
-        st.session_state.answers = transcribe_and_analyze(audio_file, company_info, company_info_link, st.session_state.questions)
-        st.success("Files uploaded successfully and template selected")
-        # else:
-            # st.error("Please select a template, upload an audio file, and provide company information")
+        if selected_template and audio_file and (company_info or company_info_link):
+            st.session_state.questions = questions[selected_template]
+            st.session_state.answers = transcribe_and_analyze(audio_file, company_info, company_info_link, st.session_state.questions)
+            st.success("Files uploaded successfully and template selected")
+        else:
+            pass
 
     if 'questions' in st.session_state and 'answers' in st.session_state:
         st.header("Edit Answers")
