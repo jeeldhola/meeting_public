@@ -1,0 +1,10 @@
+openai
+python-dotenv
+fpdf
+streamlit
+requests
+beautifulsoup4
+PyMuPDF
+python-pptx
+python-docx
+git+https://github.com/openai/whisper.git
