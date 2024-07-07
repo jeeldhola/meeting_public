@@ -26,7 +26,7 @@ questions = {
         "What are the company's competitive advantages?",
         "What is the company's vision for the future?"
     ],
-    "Template 2": [
+    "Tier 1": [
         "Describe the export promotion activity that you have undertaken for the past 1 to 2 years.",
         "What business goals are you seeking to achieve through your marketing?",
         "What indices will you use to measure success?",
@@ -62,7 +62,7 @@ questions = {
         "What is the company's competitive advantage in this space?",
         "How does the application align with the company's long-term goals?"
     ],
-    "Template 5": [
+    "Tier 3": [
         "What is the primary objective of the Lucent Global application?",
         "What markets is Lucent Global targeting?",
         "What is the technology focus for Lucent Global?",
@@ -98,7 +98,7 @@ questions = {
     "How will the success of the grant project be measured?",
     "How does the grant align with the company's long-term goals?"
     ],
-    "Template 8": [
+    "Tier 2": [
     "What is the primary objective of the Plan-to-market initiative?",
     "What markets is the company targeting?",
     "What is the strategy for entering new markets?",
