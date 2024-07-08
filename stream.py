@@ -161,7 +161,7 @@ else:
         answers = []
         instructions = []
         for i, qa in enumerate(st.session_state.answers):
-            st.write(f"**{qa['question']}**")
+            st.write(str(f"**{qa['question']}**"))
             answer = st.text_area(f"Answer {i+1}", value=qa['answer'], key=f"answer_{i+1}")
             answers.append(answer)
             
