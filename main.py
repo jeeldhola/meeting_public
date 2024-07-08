@@ -183,7 +183,7 @@ def load_history():
 def get_current_history() -> dict:
     return history
 
-def transcribe_and_analyze(audio_file= None, company_info = None, company_info_link= None, questions= None):
+def transcribe_and_analyze(audio_file, company_info , company_info_link, questions):
     if audio_file and (company_info or company_info_link):
         audio_file_path = f"temp_{audio_file.name}"
         with open(audio_file_path, "wb") as f:
