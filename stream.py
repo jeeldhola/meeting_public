@@ -44,7 +44,7 @@ else:
     st.header("Upload Files")
     audio_file = st.file_uploader("Upload Meeting Recording", type=["mp3", "wav", "mp4"])
     company_info = st.file_uploader("Upload Company Information", type=["pdf", "docx", "ppt", "txt"])
-    company_info_link = st.text_input("provide a website link for company information")
+    company_info_link = st.text_input("Provide a website link for company information")
 
     st.header("Select Template")
     templates = list(questions.keys())
@@ -55,25 +55,29 @@ else:
             st.session_state.answers = transcribe_and_analyze(audio_file, company_info, company_info_link, st.session_state.questions)
             st.success("Files uploaded successfully and template selected")
         else:
-            st.session_state.answers = transcribe_and_analyze(audio_file, company_info, company_info_link, st.session_state.questions)
-            pass
+            st.error("Please upload files and select a template")
 
     if 'questions' in st.session_state and 'answers' in st.session_state:
         st.header("Edit Answers")
         answers = []
         instructions = []
+
         for i, qa in enumerate(st.session_state.answers):
-            st.write(f"**{qa['question']}**")
-            answer = st.text_area(f"Answer {i+1}", value=qa['answer'], key=f"answer_{i+1}")
-            answers.append(answer)
-            
-            instruction = st.text_input(f"Instruction for Answer {i+1}", key=f"instruction_{i+1}")
-            instructions.append(instruction)
-            
-            if st.button(f"Revise Answer {i+1}", key=f"revise_{i+1}"):
-                revised_answer = revise_answer(answer, instruction)
-                st.session_state.answers[i]['answer'] = revised_answer
-                st.experimental_rerun()
+            # Check if qa is a dictionary
+            if isinstance(qa, dict):
+                st.write(f"**{qa['question']}**")
+                answer = st.text_area(f"Answer {i+1}", value=qa['answer'], key=f"answer_{i+1}")
+                answers.append(answer)
+                
+                instruction = st.text_input(f"Instruction for Answer {i+1}", key=f"instruction_{i+1}")
+                instructions.append(instruction)
+                
+                if st.button(f"Revise Answer {i+1}", key=f"revise_{i+1}"):
+                    revised_answer = revise_answer(answer, instruction)
+                    st.session_state.answers[i]['answer'] = revised_answer
+                    st.experimental_rerun()
+            else:
+                st.error("Error: Unexpected format in answers. Expected a dictionary.")
         
         if st.button("Save"):
             st.session_state.final_answers = [{"question": st.session_state.questions[i], "answer": ans} for i, ans in enumerate(answers)]
