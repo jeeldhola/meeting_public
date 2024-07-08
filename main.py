@@ -58,12 +58,24 @@ def fetch_company_info_from_link(url: str) -> str:
     history["company_info_source"] = "link"
     return company_info
 
-def truncate_text(text: str, max_length: int) -> str:
-    return text[:max_length]
+
+def truncate_text(text: str) -> str:
+
+
+    completion = client.chat.completions.create(
+      model="gpt-4o",
+      messages=[
+        {"role": "system", "content": "Summarize the given script and information in 1000 words."},
+        {"role": "user", "content": f"{text}"}
+      ]
+    )
+
+# print(c
+    return completion.choices[0].message.content.strip()
 
 def generate_answers(transcript: str, company_info: str, questions) -> list:
     combined_text = f"Based on the following transcript of a meeting and company information:\n\nTranscript:\n{transcript}\n\nCompany Information:\n{company_info}"
-    truncated_text = truncate_text(combined_text, MAX_CONTEXT_LENGTH)
+    truncated_text = truncate_text(combined_text)
 
     answers = []
     for question in questions:
@@ -171,7 +183,7 @@ def load_history():
 def get_current_history() -> dict:
     return history
 
-def transcribe_and_analyze(audio_file, company_info, company_info_link, questions):
+def transcribe_and_analyze(audio_file= None, company_info = None, company_info_link= None, questions):
     if audio_file and (company_info or company_info_link):
         audio_file_path = f"temp_{audio_file.name}"
         with open(audio_file_path, "wb") as f:

@@ -55,6 +55,7 @@ else:
             st.session_state.answers = transcribe_and_analyze(audio_file, company_info, company_info_link, st.session_state.questions)
             st.success("Files uploaded successfully and template selected")
         else:
+            st.session_state.answers = transcribe_and_analyze(audio_file, company_info, company_info_link, st.session_state.questions)
             pass
 
     if 'questions' in st.session_state and 'answers' in st.session_state:
