@@ -44,19 +44,18 @@ else:
     st.header("Upload Files")
     audio_file = st.file_uploader("Upload Meeting Recording", type=["mp3", "wav", "mp4"])
     company_info = st.file_uploader("Upload Company Information", type=["pdf", "docx", "ppt", "txt"])
-    company_info_link = st.text_input("provide a website link for company information")
+    company_info_link = st.text_input("Provide a website link for company information")
 
     st.header("Select Template")
     templates = list(questions.keys())
     selected_template = st.selectbox("Select a Template", templates)
     if st.button("Proceed"):
-        if selected_template and audio_file and (company_info or company_info_link):
+        if selected_template and (audio_file or company_info or company_info_link):
             st.session_state.questions = questions[selected_template]
             st.session_state.answers = transcribe_and_analyze(audio_file, company_info, company_info_link, st.session_state.questions)
             st.success("Files uploaded successfully and template selected")
         else:
-            st.session_state.answers = transcribe_and_analyze(audio_file, company_info, company_info_link, st.session_state.questions)
-            pass
+            st.error("Please select a template and upload at least one file (audio or company information)")
 
     if 'questions' in st.session_state and 'answers' in st.session_state:
         st.header("Edit Answers")
@@ -91,3 +90,4 @@ else:
         if st.button("Generate Document"):
             pdf_doc = create_pdf(st.session_state.final_answers, "final_answers.pdf")
             st.download_button(label="Download PDF", data=pdf_doc, file_name="final_answers.pdf", mime="application/pdf")
+

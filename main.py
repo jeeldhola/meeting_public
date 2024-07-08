@@ -58,20 +58,18 @@ def fetch_company_info_from_link(url: str) -> str:
     history["company_info_source"] = "link"
     return company_info
 
-
 def truncate_text(text: str) -> str:
-
-
     completion = client.chat.completions.create(
-      model="gpt-4o",
-      messages=[
-        {"role": "system", "content": "Summarize the given script and information in 1000 words."},
-        {"role": "user", "content": f"{text}"}
-      ]
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "Summarize the given script and information in 1000 words."},
+            {"role": "user", "content": f"{text}"}
+        ]
     )
-
-# print(c
+    #return completion['choices'][0]['message']['content'].strip()
     return completion.choices[0].message.content.strip()
+
+
 
 def generate_answers(transcript: str, company_info: str, questions) -> list:
     combined_text = f"Based on the following transcript of a meeting and company information:\n\nTranscript:\n{transcript}\n\nCompany Information:\n{company_info}"
@@ -110,6 +108,7 @@ def generate_answers(transcript: str, company_info: str, questions) -> list:
             presence_penalty=0
         )
 
+        # answer = response['choices'][0]['message']['content'].strip()
         answer = response.choices[0].message.content.strip()
         answers.append({"question": question, "answer": answer})
 
@@ -148,6 +147,7 @@ def revise_answer(original_answer, instruction):
         presence_penalty=0
     )
 
+    #revised_answer = response['choices'][0]['message']['content'].strip()
     revised_answer = response.choices[0].message.content.strip()
     return revised_answer
 
@@ -155,7 +155,6 @@ def create_pdf(answers: list, filename: str) -> bytes:
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
-    
     
     pdf.add_font('DejaVu', '', 'font/DejaVuSans.ttf', uni=True)
     pdf.set_font('DejaVu', '', 12)
@@ -183,24 +182,25 @@ def load_history():
 def get_current_history() -> dict:
     return history
 
-def transcribe_and_analyze(audio_file= None, company_info = None, company_info_link= None, questions= None):
-    if audio_file and (company_info or company_info_link):
+def transcribe_and_analyze(audio_file=None, company_info=None, company_info_link=None, questions=None):
+    transcript_text = ""
+    company_info_text = ""
+
+    if audio_file:
         audio_file_path = f"temp_{audio_file.name}"
         with open(audio_file_path, "wb") as f:
             f.write(audio_file.getbuffer())
-
         transcript_text = transcribe_audio(audio_file_path)
 
-        if company_info:
-            company_file_path = f"temp_{company_info.name}"
-            with open(company_file_path, "wb") as f:
-                f.write(company_info.getbuffer())
-            with open(company_file_path, "r", encoding="latin-1") as f:
-                company_info_text = f.read()
-            history["company_file"] = company_info.name
-        else:
-            company_info_text = fetch_company_info_from_link(company_info_link)
+    if company_info:
+        company_file_path = f"temp_{company_info.name}"
+        with open(company_file_path, "wb") as f:
+            f.write(company_info.getbuffer())
+        with open(company_file_path, "r", encoding="latin-1") as f:
+            company_info_text = f.read()
+        history["company_file"] = company_info.name
+    elif company_info_link:
+        company_info_text = fetch_company_info_from_link(company_info_link)
 
-        answers = generate_answers(transcript_text, company_info_text, questions)
-        return answers
-    return ["No audio or company file/link provided"]
+    answers = generate_answers(transcript_text, company_info_text, questions)
+    return answers
