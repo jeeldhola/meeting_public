@@ -6,16 +6,17 @@ from fpdf import FPDF
 from io import BytesIO
 from template import questions
 import streamlit as st
-import fitz  
-from docx import Document as DocxDocument
-from pptx import Presentation
-import requests
-from bs4 import BeautifulSoup
+from vector import process_and_store_files, search_relevant_chunks, fetch_company_info_from_link, get_openai_response, embedding_function, store_chunks, extract_text_from_file, read_document
 from openai import OpenAI
 
-api_key = "sk-taral-upwork-VqgjaTN5HZGDFmE9sIAAT3BlbkFJ8AkY3JurXEUjXh1cfnnj"
+from sklearn.metrics.pairwise import cosine_similarity
+from transformers import GPT2Tokenizer
+import numpy as np
 
+api_key = "sk-taral-upwork-VqgjaTN5HZGDFmE9sIAAT3BlbkFJ8AkY3JurXEUjXh1cfnnj"
 client = OpenAI(api_key=api_key)
+
+tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 
 history = {
     "audio_file": None,
@@ -28,17 +29,14 @@ history = {
 MAX_CONTEXT_LENGTH = 4096
 MAX_FILE_SIZE = 25 * 1024 * 1024
 
-def transcribe_audio(file_path: str) -> str:
-    audio_file = open(file_path, "rb")
-    transcription = client.audio.transcriptions.create(
-        model="whisper-1",
-        file=audio_file
-    )
-    transcript_text = transcription.text
-    
-    history["audio_file"] = os.path.basename(file_path)
-    history["transcript_text"] = transcript_text
-    
+def transcribe_audio(audio_file_path):
+    with open(audio_file_path, "rb") as audio_file:
+        transcription = client.audio.transcriptions.create(
+            model="whisper-1", 
+            file=audio_file, 
+            response_format="text"
+        )
+    transcript_text = transcription.strip()
     return transcript_text
 
 def upload_company_file(file: IO, filename: str) -> str:
@@ -51,94 +49,80 @@ def upload_company_file(file: IO, filename: str) -> str:
     history["company_info_source"] = "file"
     return f"Company info file '{filename}' uploaded successfully to '{file_location}'"
 
-def fetch_company_info_from_link(url: str) -> str:
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
-    company_info = soup.get_text()
-    history["company_info_source"] = "link"
-    return company_info
+def truncate_text(text: str, max_length: int) -> str:
+    tokens = tokenizer.encode(text)
+    if len(tokens) > max_length:
+        tokens = tokens[:max_length]
+        text = tokenizer.decode(tokens)
+    return text
 
-def truncate_text(text: str) -> str:
-    completion = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "Summarize the given script and information in 1000 words."},
-            {"role": "user", "content": f"{text}"}
-        ]
-    )
-    #return completion['choices'][0]['message']['content'].strip()
-    return completion.choices[0].message.content.strip()
+def generate_answers(transcript, company_info, company_info_link, questions):
+    combined_chunks = []
 
+    if transcript:
+        transcript_chunks = store_chunks(transcript, "transcript")
+        combined_chunks.extend(transcript_chunks)
 
+    if company_info:
+        company_info_chunks = store_chunks(company_info, "company_info")
+        combined_chunks.extend(company_info_chunks)
 
-def generate_answers(transcript: str, company_info: str, questions) -> list:
-    combined_text = f"Based on the following transcript of a meeting and company information:\n\nTranscript:\n{transcript}\n\nCompany Information:\n{company_info}"
-    truncated_text = truncate_text(combined_text)
+    if company_info_link:
+        company_info_link_text = fetch_company_info_from_link(company_info_link)
+        company_info_link_chunks = store_chunks(company_info_link_text, "company_info_link")
+        combined_chunks.extend(company_info_link_chunks)
+
+    print("Combined Chunks:")
+    for chunk in combined_chunks:
+        if 'metadata' in chunk and 'text' in chunk['metadata']:
+            print(f"Chunk ID: {chunk['id']}, Text: {chunk['metadata']['text']}")  # Print entire chunk text
+        else:
+            print("Invalid chunk structure:", chunk)
+
+    valid_chunks = [chunk for chunk in combined_chunks if 'metadata' in chunk and 'text' in chunk['metadata']]
+    if not valid_chunks:
+        print("No valid chunks found.")
+        return []
 
     answers = []
+    max_combined_length = 1024  
     for question in questions:
-        prompt = {
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": f"{truncated_text}\n\nPlease provide a detailed and specific answer to the following question -\n\"{question}\""
-                }
-            ]
-        }
-
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "system",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "You are a helpful assistant. Given the following combined text of an audio transcript and company information, please provide a detailed and specific answer to the question provided."
-                        }
-                    ]
-                },
-                prompt
-            ],
-            temperature=1,
-            max_tokens=3223,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0
-        )
-
-        # answer = response['choices'][0]['message']['content'].strip()
-        answer = response.choices[0].message.content.strip()
+        sorted_chunks = sorted(valid_chunks, key=lambda chunk: similarity(chunk['metadata']['text'], question), reverse=True)
+        context = ""
+        for chunk in sorted_chunks:
+            if len(context) + len(chunk['metadata']['text']) <= max_combined_length:
+                context += chunk['metadata']['text'] + " "
+            else:
+                break
+        context = truncate_text(context, max_combined_length)
+        answer = get_openai_response(context, question)
         answers.append({"question": question, "answer": answer})
-
-    history["final_questions_and_answers"] = answers
     return answers
 
+from sklearn.metrics.pairwise import cosine_similarity
+
+def similarity(text, question):
+    question_embedding = embedding_function.embed_query(question)
+    text_embedding = embedding_function.embed_documents([text])[0]
+    return cosine_similarity([question_embedding], [text_embedding])[0][0]
+
 def revise_answer(original_answer, instruction):
-    prompt = {
-        "role": "user",
-        "content": [
-            {
-                "type": "text",
-                "text": f"Original answer:\n{original_answer}\n\nInstruction:\n{instruction}\n\nPlease revise the answer according to the instruction."
-            }
-        ]
-    }
+    prompt = f"""
+    You are a helpful assistant. Please revise the given answer according to the provided instruction.
+
+    Original answer:
+    {original_answer}
+    
+    Instruction:
+    {instruction}
+    
+    Revised answer:
+    """
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4",
         messages=[
-            {
-                "role": "system",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "You are a helpful assistant. Please revise the given answer according to the instruction provided."
-                    }
-                ]
-            },
-            prompt
+            {"role": "user", "content": prompt}
         ],
         temperature=1,
         max_tokens=1500,
@@ -147,7 +131,6 @@ def revise_answer(original_answer, instruction):
         presence_penalty=0
     )
 
-    #revised_answer = response['choices'][0]['message']['content'].strip()
     revised_answer = response.choices[0].message.content.strip()
     return revised_answer
 
@@ -182,8 +165,11 @@ def load_history():
 def get_current_history() -> dict:
     return history
 
-def transcribe_and_analyze(audio_file= None, company_info = None, company_info_link= None, questions= None):
-    if audio_file and (company_info or company_info_link):
+def transcribe_and_analyze(audio_file, company_info, company_info_link, questions):
+    transcript_text = ""
+    company_info_text = ""
+
+    if audio_file:
         audio_file_path = f"temp_{audio_file.name}"
         with open(audio_file_path, "wb") as f:
             f.write(audio_file.getbuffer())
@@ -193,11 +179,10 @@ def transcribe_and_analyze(audio_file= None, company_info = None, company_info_l
         company_file_path = f"temp_{company_info.name}"
         with open(company_file_path, "wb") as f:
             f.write(company_info.getbuffer())
-        with open(company_file_path, "r", encoding="latin-1") as f:
-            company_info_text = f.read()
+        filename, company_info_text, doc_hash = read_document(company_file_path, "PUBLIC")
         history["company_file"] = company_info.name
     elif company_info_link:
         company_info_text = fetch_company_info_from_link(company_info_link)
 
-    answers = generate_answers(transcript_text, company_info_text, questions)
+    answers = generate_answers(transcript_text, company_info_text, company_info_link, questions)
     return answers
