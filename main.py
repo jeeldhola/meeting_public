@@ -182,7 +182,7 @@ def load_history():
 def get_current_history() -> dict:
     return history
 
-def transcribe_and_analyze(audio_file= None, company_info = None, company_info_link= None, questions= None):
+'''def transcribe_and_analyze(audio_file= None, company_info = None, company_info_link= None, questions= None):
     if audio_file and (company_info or company_info_link):
         audio_file_path = f"temp_{audio_file.name}"
         with open(audio_file_path, "wb") as f:
@@ -198,6 +198,31 @@ def transcribe_and_analyze(audio_file= None, company_info = None, company_info_l
         history["company_file"] = company_info.name
     elif company_info_link:
         company_info_text = fetch_company_info_from_link(company_info_link)
+
+    answers = generate_answers(transcript_text, company_info_text, questions)
+    return answers'''
+
+def transcribe_and_analyze(audio_file, company_info, company_info_link, questions):
+    if audio_file:
+        audio_file_path = f"temp_{audio_file.name}"
+        with open(audio_file_path, "wb") as f:
+            f.write(audio_file.getbuffer())
+
+        transcript_text = transcribe_audio(audio_file_path)
+    else:
+        transcript_text = ""
+
+    if company_info:
+        company_file_path = f"temp_{company_info.name}"
+        with open(company_file_path, "wb") as f:
+            f.write(company_info.getbuffer())
+        with open(company_file_path, "r", encoding="latin-1") as f:
+            company_info_text = f.read()
+        history["company_file"] = company_info.name
+    elif company_info_link:
+        company_info_text = fetch_company_info_from_link(company_info_link)
+    else:
+        company_info_text = ""
 
     answers = generate_answers(transcript_text, company_info_text, questions)
     return answers
